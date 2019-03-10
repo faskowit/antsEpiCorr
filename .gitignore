@@ -2,3 +2,4 @@ config.json
 output*
 venv
 .idea
+test*

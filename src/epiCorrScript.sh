@@ -1,6 +1,10 @@
 #!/bin/bash
 #
 # epi correct w/ ANTs registration to T1w
+# the registation uses both the avg B0 and the dwi power map to register the 
+# dwi to the T1. the power map has similar contrast to the T1. if you'd like
+# to see the power map, just comment out the line at the end of main that 
+# removes the file
 #
 # Josh Faskowitz
 # Indiana University
@@ -51,6 +55,11 @@ log() {
     echo
 }
 
+lsrm() {
+    file=$1
+    ls ${file} && rm $file
+}
+
 DEFpowersh=4
 APPLYWARP="false"
 
@@ -69,7 +78,7 @@ main()
     ###########################################################################
     # parse arguments
 
-    while (( $# > 1 )) ; do
+    while (( $# > 0 )) ; do
         case "$1" in
             "-help")
                 Usage
@@ -86,7 +95,7 @@ main()
                 ;;
             -t | -t1) shift ; T1WDWISPACE="${1}" ; shift
                 ;;
-            -a | -apply) shift ; APPLYWARP="true"
+            -a | -apply) shift ; APPLYWARP="true" 
                 ;;
             -*)
                 echo "ERROR: Unknown option '$1'"
@@ -110,13 +119,14 @@ main()
     # run it
 
     start=`date +%s`
+    mkdir -p ${ODIR} || { echo "cannot make output dir. exiting" ; exit 1 ; }
 
     # make a b0
     cmd="${FSLDIR}/bin/select_dwi_vols \
             ${DWI} \
             ${BVAL} \
             ${ODIR}/avgb0.nii.gz \
-            -m \
+            0 -m \
         "
     log ${cmd}
     eval ${cmd}
@@ -156,7 +166,6 @@ main()
     log ${cmd}
     eval ${cmd}
 
-
     ###########################################################################
     # run the registration
 
@@ -168,7 +177,7 @@ main()
             --metric MI[ ${T1WDWISPACE} , ${ODIR}/avgb0.nii.gz , 0.25 , 32 ] \
             --metric CC[ ${T1WDWISPACE} , ${powMap} , 0.75 , 4 ] \
                 --transform SyN[ 0.1 , 3.0 , 1 ] \
-                --convergence [ 50x40x20 , 1e-4 , 5 ] \
+                --convergence [ 50x40x20 , 1e-6 , 5 ] \
                 --shrink-factors 1x1x1 \
                 --smoothing-sigmas 1x0.5x0 \
                 --use-histogram-matching 0 \
@@ -177,30 +186,11 @@ main()
             --metric MI[ ${T1WDWISPACE} , ${ODIR}/avgb0.nii.gz , 0.5 , 32 ] \
             --metric CC[ ${T1WDWISPACE} , ${powMap} , 0.5 , 4 ] \
                 --transform SyN[ 0.15 , 3.0 , 0.25 ] \
-                --convergence [ 10x10 , 1e-4 , 5 ] \
+                --convergence [ 10x10 , 1e-6 , 5 ] \
                 --shrink-factors 1x1 \
                 --smoothing-sigmas 0.5x0 \
                 --use-histogram-matching 0 \
                 -g 0.01x1x0.01 \
-        "
-        cmd="${ANTSPATH}/antsRegistration \
-            -d 3 -v 1 \
-            --output [ ${ODIR}/epi_ , ${ODIR}/defb0.nii.gz ] \
-            --write-composite-transform 0 \
-            \
-            --metric MI[ ${T1WDWISPACE} , ${ODIR}/avgb0.nii.gz , 0.25 , 32 ] \
-                --transform SyN[ 0.1 , 3.0 , 1 ] \
-                --convergence [ 50x40x20 , 1e-4 , 5 ] \
-                --shrink-factors 1x1x1 \
-                --smoothing-sigmas 1x0.5x0 \
-                --use-histogram-matching 0 \
-            \
-            --metric MI[ ${T1WDWISPACE} , ${ODIR}/avgb0.nii.gz , 0.5 , 32 ] \
-                --transform SyN[ 0.15 , 3.0 , 0.25 ] \
-                --convergence [ 10x10 , 1e-4 , 5 ] \
-                --shrink-factors 1x1 \
-                --smoothing-sigmas 0.5x0 \
-                --use-histogram-matching 0 \
         "
     log ${cmd}
     eval ${cmd}
@@ -220,7 +210,7 @@ main()
                     -i ${DWI} \
                     -r ${ODIR}/avgb0.nii.gz \
                     -n BSpline \
-                    -o ${workingDir}/dwi_antsEpiCorr.nii.gz \
+                    -o ${ODIR}/dwi_antsEpiCorr.nii.gz \
                     --float \
                     -t ${warp} \
                 "
@@ -228,7 +218,7 @@ main()
             eval ${cmd}
         else
             # won't get here...
-            echo ""
+            echo "problem"
         fi
     fi
 
@@ -236,6 +226,11 @@ main()
     runtime=$((end-start))
     echo "runtime: $runtime"
 
+    # lets cleanup
+    echo "removing intermediate files:"
+    lsrm ${ODIR}/epi_0InverseWarp.nii.gz
+    lsrm ${ODIR}/epi_0Warp.nii.gz
+    lsrm ${ODIR}/map_powMap_sh4.nii.gz
 }
 
 ###############################################################################
