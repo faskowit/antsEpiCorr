@@ -69,13 +69,13 @@ class readArgs:
 
     def check_args(self, args_to_check):
         args = args_to_check.parse_args()
-        self.dwi_ = args.dwi
-        self.mask_ = args.mask
-        self.bvec_ = args.bvec
-        self.bval_ = args.bval
-        self.output_ = args.output
+        self.dwi_ = args.dwi[0]
+        self.mask_ = args.mask[0]
+        self.bvec_ = args.bvec[0]
+        self.bval_ = args.bval[0]
+        self.output_ = args.output[0]
         if args.sh_order:
-            self.sh_order_ = args.sh_order
+            self.sh_order_ = args.sh_order[0]
         checkisfile(self.dwi_)
         checkisfile(self.mask_)
         checkisfile(self.bvec_)
@@ -107,7 +107,7 @@ def main():
     dwi_data = dwi_img.get_data()
     mask_data = mask_img.get_data()
     # and get affine
-    img_affine = mask_img.affine
+    img_affine = dwi_img.affine
 
     from dipy.data import get_sphere
     sphere = get_sphere('repulsion724')
