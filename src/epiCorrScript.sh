@@ -229,7 +229,7 @@ main()
     # lets cleanup
     echo "removing intermediate files:"
     lsrm ${ODIR}/epi_0InverseWarp.nii.gz
-    lsrm ${ODIR}/epi_0Warp.nii.gz
+    # lsrm ${ODIR}/epi_0Warp.nii.gz
     lsrm ${ODIR}/map_powMap_sh4.nii.gz
 }
 
